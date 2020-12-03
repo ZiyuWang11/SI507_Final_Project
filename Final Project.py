@@ -7,6 +7,8 @@ from bs4 import BeautifulSoup
 import requests
 import json
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
 
 active_url = "https://finance.yahoo.com/most-active"
@@ -27,10 +29,60 @@ class StockInfo:
         self.profit_rate = profit_rate
 
     def info(self):
-        if (self.debt_rate < 0.4) & (self.ROE > 0.2) & (self.profit_rate > 0.1):
+        if (np.mean(self.debt_rate) < 0.4) & (np.mean(self.ROE) > 15) & (np.mean(self.profit_rate) > 0.1):
+            print("This stock is worth holding")
             return True
         else:
+            print("Be cautious with this stock, Because:")
+            if np.mean(self.debt_rate) <= 0.4:
+                print("Debt rate is too high")
+            elif np.mean(self.ROE) <= 15:
+                print("ROE is too low")
+            elif np.mean(self.profit_rate) <= 0.1:
+                print("Profit rate is too low")
             return False
+
+    def plot(self):
+        year_list = [2020, 2019, 2018, 2017]
+        x_major_locator = plt.MultipleLocator(1)
+
+        def to_percent(temp, position):
+            return '%1.0f' % (100 * temp) + '%'
+
+
+
+        plt.scatter(year_list, self.debt_rate, c="blue")
+        plt.plot(year_list, self.debt_rate, c="blue")
+        plt.title("Debt Rate", fontsize=24)
+        plt.tick_params(axis="both", which="major", labelsize=14)
+        plt.xlabel("Year", fontsize=18)
+        plt.ylabel("Debt Rate", fontsize=18)
+        ax = plt.gca()
+        ax.xaxis.set_major_locator(x_major_locator)
+        ax.yaxis.set_major_formatter(ticker.FuncFormatter(to_percent))
+        plt.show()
+
+        plt.scatter(year_list, self.ROE, c="red")
+        plt.plot(year_list, self.ROE, c="red")
+        plt.title("ROE", fontsize=24)
+        plt.tick_params(axis="both", which="major", labelsize=14)
+        plt.xlabel("Year", fontsize=18)
+        plt.ylabel("ROE", fontsize=18)
+        ax = plt.gca()
+        ax.xaxis.set_major_locator(x_major_locator)
+        plt.show()
+
+        plt.scatter(year_list, self.profit_rate, c="green")
+        plt.plot(year_list, self.profit_rate, c="green")
+        plt.title("Profit Rate", fontsize=24)
+        plt.tick_params(axis="both", which="major", labelsize=14)
+        plt.xlabel("Year", fontsize=18)
+        plt.ylabel("Profit Rate", fontsize=18)
+        ax = plt.gca()
+        ax.xaxis.set_major_locator(x_major_locator)
+        ax.yaxis.set_major_formatter(ticker.FuncFormatter(to_percent))
+        plt.show()
+
 
 
 def open_cache(name):
@@ -134,6 +186,7 @@ def get_financial_info(symbol, symbol_dict):
         ls_1 = []
         total_assets = []
         total_debt = []
+        debt_rate = []
         cash_row = soup_1.find_all(class_="D(tbr) fi-row Bgc($hoverBgColor):h")
         for i in cash_row:
             a = i.find_all("span")
@@ -142,12 +195,15 @@ def get_financial_info(symbol, symbol_dict):
 
         for i in range(len(ls_1)):
             if ls_1[i] == "Total Assets":
-                for j in range(1, 3):
+                for j in range(1, 5):
                     total_assets.append(int(ls_1[i+j].replace(",", "")))
             elif ls_1[i] == "Total Debt":
-                for j in range(1, 3):
+                for j in range(1, 5):
                     total_debt.append(int(ls_1[i+j].replace(",", "")))
-        debt_rate = np.mean(total_debt) / np.mean(total_assets)
+
+        for i in range(4):
+            debt_rate.append(total_debt[i] / total_assets[i])
+
 
         resp_2 = requests.get(symbol_dict[symbol]["income_statement"])
         soup_2 = BeautifulSoup(resp_2.text, "html.parser")
@@ -157,6 +213,8 @@ def get_financial_info(symbol, symbol_dict):
         net_income = []
         stockholder_income = []
         ave_shares = []
+        profit_rate = []
+        ROE = []
         income = soup_2.find_all(class_="D(tbr) fi-row Bgc($hoverBgColor):h")
         for i in income:
             a = i.find_all("span")
@@ -165,19 +223,21 @@ def get_financial_info(symbol, symbol_dict):
 
         for i in range(len(ls_2)):
             if ls_2[i] == "Total Revenue":
-                for j in range(2, 4):
+                for j in range(2, 6):
                     total_revenue.append(int(ls_2[i + j].replace(",", "")))
             elif ls_2[i] == "Net Income from Continuing & Discontinued Operation":
-                for j in range(2, 4):
+                for j in range(2, 6):
                     net_income.append(int(ls_2[i + j].replace(",", "")))
             elif ls_2[i] == "Net Income Common Stockholders":
-                for j in range(2, 4):
+                for j in range(2, 6):
                     stockholder_income.append(int(ls_2[i + j].replace(",", "")))
             elif ls_2[i] == "Basic Average Shares":
-                for j in range(1, 3):
+                for j in range(1, 5):
                     ave_shares.append(int(ls_2[i + j].replace(",", "")))
-        profit_rate = np.mean(net_income) / np.mean(total_revenue)
-        ROE = np.mean(ave_shares) / np.mean(stockholder_income)
+
+        for i in range(4):
+            profit_rate.append(net_income[i] / total_revenue[i])
+            ROE.append(stockholder_income[i] / ave_shares[i])
 
         CACHE_DICT_1[symbol] = {"debt_rate": debt_rate, "profit_rate": profit_rate, "ROE": ROE}
         save_cache(CACHE_DICT_1, CACHE_FILENAME_1)
@@ -188,11 +248,13 @@ def get_financial_info(symbol, symbol_dict):
 
 if __name__ == "__main__":
     dict = build_symbol_dict()
-    symbol = input("Please input a symbol:")
+    print("Show first 10 symbols")
+    for i in range(10):
+        print(str(i + 1) + ". " + list(dict.keys())[i])
+    #symbol = input("Please input a symbol:")
+    symbol = "BABA"
     stock = get_financial_info(symbol, dict)
 
-    if stock.info() is True:
-        print("good")
-    else:
-        print("bad")
+    stock.info()
+    stock.plot()
 
