@@ -10,7 +10,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
-
 active_url = "https://finance.yahoo.com/most-active"
 find_symbol_url = "https://finance.yahoo.com/most-active/?count=25&offset="
 income_statement_url = "https://finance.yahoo.com/quote/XX/financials?p=XX"
@@ -34,11 +33,11 @@ class StockInfo:
             return True
         else:
             print("Be cautious with this stock, Because:")
-            if np.mean(self.debt_rate) <= 0.4:
+            if np.mean(self.debt_rate) >= 0.4:
                 print("Debt rate is too high")
-            elif np.mean(self.ROE) <= 15:
+            if np.mean(self.ROE) <= 15:
                 print("ROE is too low")
-            elif np.mean(self.profit_rate) <= 0.1:
+            if np.mean(self.profit_rate) <= 0.1:
                 print("Profit rate is too low")
             return False
 
@@ -49,12 +48,15 @@ class StockInfo:
         def to_percent(temp, position):
             return '%1.0f' % (100 * temp) + '%'
 
-
-
+        if 0 in self.debt_rate:
+            self.debt_rate.remove(0)
+        for i in range(len(self.debt_rate), 4):
+            self.debt_rate.append(None)
         plt.scatter(year_list, self.debt_rate, c="blue")
         plt.plot(year_list, self.debt_rate, c="blue")
         plt.title("Debt Rate", fontsize=24)
         plt.tick_params(axis="both", which="major", labelsize=14)
+        plt.xlim(2016.8, 2020.2)
         plt.xlabel("Year", fontsize=18)
         plt.ylabel("Debt Rate", fontsize=18)
         ax = plt.gca()
@@ -62,27 +64,40 @@ class StockInfo:
         ax.yaxis.set_major_formatter(ticker.FuncFormatter(to_percent))
         plt.show()
 
+        if 0 in self.ROE:
+            self.ROE.remove(0)
+        print(self.ROE)
+        for i in range(len(self.ROE), 4):
+            self.ROE.append(None)
+        print(self.ROE)
         plt.scatter(year_list, self.ROE, c="red")
         plt.plot(year_list, self.ROE, c="red")
         plt.title("ROE", fontsize=24)
         plt.tick_params(axis="both", which="major", labelsize=14)
+        plt.xlim(2016.8, 2020.2)
         plt.xlabel("Year", fontsize=18)
         plt.ylabel("ROE", fontsize=18)
         ax = plt.gca()
         ax.xaxis.set_major_locator(x_major_locator)
         plt.show()
 
+        if 0 in self.profit_rate:
+            self.profit_rate.remove(0)
+        print(self.profit_rate)
+        for i in range(len(self.profit_rate), 4):
+            self.profit_rate.append(None)
+        print(self.profit_rate)
         plt.scatter(year_list, self.profit_rate, c="green")
         plt.plot(year_list, self.profit_rate, c="green")
         plt.title("Profit Rate", fontsize=24)
         plt.tick_params(axis="both", which="major", labelsize=14)
+        plt.xlim(2016.8, 2020.2)
         plt.xlabel("Year", fontsize=18)
         plt.ylabel("Profit Rate", fontsize=18)
         ax = plt.gca()
         ax.xaxis.set_major_locator(x_major_locator)
         ax.yaxis.set_major_formatter(ticker.FuncFormatter(to_percent))
         plt.show()
-
 
 
 def open_cache(name):
@@ -151,12 +166,12 @@ def build_symbol_dict():
     total_num = soup.find(class_="Mstart(15px) Fw(500) Fz(s)").find("span").text.strip()
     num_begin = total_num.find("of")
     num_end = total_num.find("results")
-    total_num = int(total_num[num_begin+3: num_end-1])
+    total_num = int(total_num[num_begin + 3: num_end - 1])
 
     # Add symbols and link to income statement url
-    loop_num = int(total_num/25) + 1
+    loop_num = int(total_num / 25) + 1
     for i in range(loop_num):
-        resp_1 = requests.get(find_symbol_url + str(i*25))
+        resp_1 = requests.get(find_symbol_url + str(i * 25))
         soup_1 = BeautifulSoup(resp_1.text, "html.parser")
 
         for item in soup_1.select('.simpTblRow'):
@@ -180,6 +195,7 @@ def get_financial_info(symbol, symbol_dict):
     if symbol in CACHE_DICT_1.keys():
         print("Using cache")
     else:
+        print("Fetching")
         resp_1 = requests.get(symbol_dict[symbol]["balance_sheet"])
         soup_1 = BeautifulSoup(resp_1.text, "html.parser")
 
@@ -196,14 +212,23 @@ def get_financial_info(symbol, symbol_dict):
         for i in range(len(ls_1)):
             if ls_1[i] == "Total Assets":
                 for j in range(1, 5):
-                    total_assets.append(int(ls_1[i+j].replace(",", "")))
+                    if ls_1[i + j].replace(",", "").replace("-", "").isnumeric() is True:
+                        total_assets.append(float(ls_1[i + j].replace(",", "")))
+                    else:
+                        total_assets.append(None)
             elif ls_1[i] == "Total Debt":
                 for j in range(1, 5):
-                    total_debt.append(int(ls_1[i+j].replace(",", "")))
+                    if ls_1[i + j].replace(",", "").replace("-", "").isnumeric() is True:
+                        total_debt.append(float(ls_1[i + j].replace(",", "")))
+                    else:
+                        total_assets.append(None)
 
-        for i in range(4):
-            debt_rate.append(total_debt[i] / total_assets[i])
-
+        for i in range(min(len(total_debt), len(total_assets))):
+            if total_debt[i] is not None and total_debt[i] != 0 \
+                    and total_assets[i] is not None and total_assets[i] != 0:
+                debt_rate.append(total_debt[i] / total_assets[i])
+            else:
+                break
 
         resp_2 = requests.get(symbol_dict[symbol]["income_statement"])
         soup_2 = BeautifulSoup(resp_2.text, "html.parser")
@@ -224,26 +249,49 @@ def get_financial_info(symbol, symbol_dict):
         for i in range(len(ls_2)):
             if ls_2[i] == "Total Revenue":
                 for j in range(2, 6):
-                    total_revenue.append(int(ls_2[i + j].replace(",", "")))
+                    if ls_2[i + j].replace(",", "").replace("-", "").isnumeric() is True:
+                        total_revenue.append(float(ls_2[i + j].replace(",", "")))
+                    else:
+                        total_revenue.append(None)
             elif ls_2[i] == "Net Income from Continuing & Discontinued Operation":
                 for j in range(2, 6):
-                    net_income.append(int(ls_2[i + j].replace(",", "")))
+                    if ls_2[i + j].replace(",", "").replace("-", "").isnumeric() is True:
+                        net_income.append(float(ls_2[i + j].replace(",", "")))
+                    else:
+                        net_income.append(None)
             elif ls_2[i] == "Net Income Common Stockholders":
                 for j in range(2, 6):
-                    stockholder_income.append(int(ls_2[i + j].replace(",", "")))
+                    if ls_2[i + j].replace(",", "").replace("-", "").isnumeric() is True:
+                        stockholder_income.append(float(ls_2[i + j].replace(",", "")))
+                    else:
+                        stockholder_income.append(None)
             elif ls_2[i] == "Basic Average Shares":
                 for j in range(1, 5):
-                    ave_shares.append(int(ls_2[i + j].replace(",", "")))
+                    if ls_2[i + j].replace(",", "").replace("-", "").isnumeric() is True:
+                        ave_shares.append(float(ls_2[i + j].replace(",", "")))
+                    else:
+                        ave_shares.append(None)
 
-        for i in range(4):
-            profit_rate.append(net_income[i] / total_revenue[i])
-            ROE.append(stockholder_income[i] / ave_shares[i])
+        for i in range(min(len(net_income), len(total_revenue))):
+            if net_income[i] is not None and net_income[i] != 0 \
+                    and total_revenue[i] is not None and total_revenue[i] != 0:
+                profit_rate.append(net_income[i] / total_revenue[i])
+            else:
+                break
+
+
+        for i in range(min(len(stockholder_income), len(ave_shares))):
+            if stockholder_income[i] is not None and stockholder_income[i] != 0 \
+                    and ave_shares[i] is not None and ave_shares[i] != 0:
+                ROE.append(stockholder_income[i] / ave_shares[i])
+            else:
+                break
 
         CACHE_DICT_1[symbol] = {"debt_rate": debt_rate, "profit_rate": profit_rate, "ROE": ROE}
         save_cache(CACHE_DICT_1, CACHE_FILENAME_1)
 
-    return StockInfo(CACHE_DICT_1[symbol]["debt_rate"], CACHE_DICT_1[symbol]["ROE"], CACHE_DICT_1[symbol]["profit_rate"])
-
+    return StockInfo(CACHE_DICT_1[symbol]["debt_rate"], CACHE_DICT_1[symbol]["ROE"],
+                     CACHE_DICT_1[symbol]["profit_rate"])
 
 
 if __name__ == "__main__":
@@ -251,10 +299,9 @@ if __name__ == "__main__":
     print("Show first 10 symbols")
     for i in range(10):
         print(str(i + 1) + ". " + list(dict.keys())[i])
-    #symbol = input("Please input a symbol:")
-    symbol = "BABA"
+    symbol = input("Please input a symbol:")
+    # symbol = "AAPL"
     stock = get_financial_info(symbol, dict)
 
     stock.info()
     stock.plot()
-
