@@ -22,7 +22,8 @@ CACHE_DICT_1 = {}
 
 
 class StockInfo:
-    def __init__(self, debt_rate, ROE, profit_rate):
+    def __init__(self, symbol, debt_rate, ROE, profit_rate):
+        self.symbol = symbol
         self.debt_rate = debt_rate
         self.ROE = ROE
         self.profit_rate = profit_rate
@@ -32,7 +33,7 @@ class StockInfo:
             print("This stock is worth holding")
             return True
         else:
-            print("Be cautious with this stock, Because:")
+            print("Be cautious with " + self.symbol + ", Because:")
             if np.mean(self.debt_rate) >= 0.4:
                 print("Debt rate is too high")
             if np.mean(self.ROE) <= 15:
@@ -66,10 +67,8 @@ class StockInfo:
 
         if 0 in self.ROE:
             self.ROE.remove(0)
-        print(self.ROE)
         for i in range(len(self.ROE), 4):
             self.ROE.append(None)
-        print(self.ROE)
         plt.scatter(year_list, self.ROE, c="red")
         plt.plot(year_list, self.ROE, c="red")
         plt.title("ROE", fontsize=24)
@@ -83,10 +82,8 @@ class StockInfo:
 
         if 0 in self.profit_rate:
             self.profit_rate.remove(0)
-        print(self.profit_rate)
         for i in range(len(self.profit_rate), 4):
             self.profit_rate.append(None)
-        print(self.profit_rate)
         plt.scatter(year_list, self.profit_rate, c="green")
         plt.plot(year_list, self.profit_rate, c="green")
         plt.title("Profit Rate", fontsize=24)
@@ -290,18 +287,50 @@ def get_financial_info(symbol, symbol_dict):
         CACHE_DICT_1[symbol] = {"debt_rate": debt_rate, "profit_rate": profit_rate, "ROE": ROE}
         save_cache(CACHE_DICT_1, CACHE_FILENAME_1)
 
-    return StockInfo(CACHE_DICT_1[symbol]["debt_rate"], CACHE_DICT_1[symbol]["ROE"],
+    return StockInfo(symbol, CACHE_DICT_1[symbol]["debt_rate"], CACHE_DICT_1[symbol]["ROE"],
                      CACHE_DICT_1[symbol]["profit_rate"])
 
 
-if __name__ == "__main__":
-    dict = build_symbol_dict()
-    print("Show first 10 symbols")
-    for i in range(10):
-        print(str(i + 1) + ". " + list(dict.keys())[i])
-    symbol = input("Please input a symbol:")
-    # symbol = "AAPL"
-    stock = get_financial_info(symbol, dict)
+def show_page(dict, max_page, page_num):
 
-    stock.info()
-    stock.plot()
+    if page_num == "exit":
+        exit()
+    else:
+        if not page_num.isnumeric() or int(page_num) > max_page:
+            print("[Error] Invalid Input")
+        else:
+            for i in range(10):
+                print(str((int(page_num)-1) * 10 + i + 1) + ". " + list(dict.keys())[(int(page_num) - 1) * 10 + i])
+            option = input("Please input 'c' to check detail information, or input another page number:")
+            if option == "exit":
+                exit()
+            elif option == "c":
+                pass
+            else:
+                if not option.isnumeric() or int(option) > max_page:
+                    print("[Error] Invalid Input")
+                else:
+                    show_page(dict, max_page, option)
+
+
+
+if __name__ == "__main__":
+    # Get active stocks information
+    dict = build_symbol_dict()
+
+    a = True
+    while a:
+        # Show stocks in each page
+        max_page = int(len(dict)/10) + 1
+        page_num = input("Please input a page number you want to check (between 1 to " + str(max_page) + "):")
+
+        show_page(dict, max_page, page_num)
+
+        # check basic information of a stock
+        symbol = input("Please input a symbol:")
+        if symbol == "exit":
+            exit()
+        else:
+            stock = get_financial_info(symbol, dict)
+            stock.info()
+            stock.plot()
