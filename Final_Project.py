@@ -332,7 +332,7 @@ if __name__ == "__main__":
         show_page(dict, max_page, page_num)
 
         # check basic information of a stock
-        symbol = input("Please input a symbol:")
+        symbol = input("Please input a symbol:").upper()
         if symbol == "exit":
             exit()
         else:
