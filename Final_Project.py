@@ -305,7 +305,8 @@ def show_page(dict, max_page, page_num):
             print("[Error] Invalid Input")
         else:
             for i in range(10):
-                print(str((int(page_num)-1) * 10 + i + 1) + ". " + list(dict.keys())[(int(page_num) - 1) * 10 + i])
+                if (int(page_num) - 1) * 10 + i < len(dict.keys()):
+                    print(str((int(page_num)-1) * 10 + i + 1) + ". " + list(dict.keys())[(int(page_num) - 1) * 10 + i])
             option = input("Please input 'c' to check detail information, or input another page number:")
             if option == "exit":
                 exit()
@@ -322,6 +323,7 @@ def show_page(dict, max_page, page_num):
 if __name__ == "__main__":
     # Get active stocks information
     dict = build_symbol_dict()
+    print(len(dict.keys()))
 
     a = True
     while a:
