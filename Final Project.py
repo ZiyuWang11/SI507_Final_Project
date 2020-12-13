@@ -7,6 +7,9 @@ from bs4 import BeautifulSoup
 import requests
 import json
 import numpy as np
+import plotly.graph_objects as go
+import datetime
+import time
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
@@ -15,6 +18,8 @@ find_symbol_url = "https://finance.yahoo.com/most-active/?count=25&offset="
 income_statement_url = "https://finance.yahoo.com/quote/XX/financials?p=XX"
 balance_sheet_url = "https://finance.yahoo.com/quote/XX/balance-sheet?p=XX"
 cash_flow_url = "https://finance.yahoo.com/quote/XX/cash-flow?p=XX"
+api_url = "https://finnhub.io/api/v1/stock/candle?"
+key = "bva40sn48v6t3lvcodk0"
 CACHE_FILENAME = "url.json"
 CACHE_FILENAME_1 = "info.json"
 CACHE_DICT = {}
@@ -334,3 +339,35 @@ if __name__ == "__main__":
             stock = get_financial_info(symbol, dict)
             stock.info()
             stock.plot()
+
+        # check candlestick chart
+        candle = input("Do you want to check candlestick chart? (y/n)")
+        if candle == "n":
+            exit()
+        elif candle == "y":
+            plus_symbol = "symbol=" + symbol
+            plus_key = "&token=" + key
+            resolution = input("Please input a resolution (D for day, W for week and M for month): ")
+            plus_resolution = "&resolution=" + resolution.upper()
+            start_time = input("Please input a start time (XXXXXXXX): ")
+            timeArray = time.strptime(start_time[0:4] + "-" + start_time[4:6] + "-" + start_time[6:8] + " 00:00:00",
+                                      "%Y-%m-%d %H:%M:%S")
+            start_timestamp = int(time.mktime(timeArray))
+            end_timestamp = int(time.time())
+            plus_time = "&from=" + str(start_timestamp) + "&to=" + str(end_timestamp)
+
+            df = requests.get(api_url + plus_symbol + plus_resolution + plus_time + plus_key)
+            df = df.json()
+            time = []
+            for i in range(len(df['t'])):
+                time.append(datetime.datetime.fromtimestamp(df['t'][i]))
+
+            fig = go.Figure(data=[go.Candlestick(x=time,
+                                                 open=df['o'], high=df['h'],
+                                                 low=df['l'], close=df['c'])
+                                  ])
+
+            fig.update_layout(xaxis_rangeslider_visible=False)
+            fig.show()
+        else:
+            print("[Error] Invalid Input")
