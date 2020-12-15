@@ -1,5 +1,7 @@
 Project - Interactive Stock Trading Tool
 
+Demo video link: https://www.youtube.com/watch?v=OnFzGiknzSw
+
 [Package requirment]
 bs4, requests, json, numpy, plotly.graph_objects, datetime, time, matplotlib.pyplot, matplotlib.ticker.
 Finhub API key has been hard coded
